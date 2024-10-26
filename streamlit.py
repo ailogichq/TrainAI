@@ -1,10 +1,13 @@
 import streamlit as st
+from content_generator import get_course_content, get_quiz_generator
 
 # Initialize session state variables
 if "screen" not in st.session_state:
-    st.session_state.screen = "intro"
+    st.session_state.screen = "welcome"
     st.session_state.score = 0
     st.session_state.answers = {}
+    st.session_state.course_subject = None
+    st.session_state.loading = False  # Loading state
 
 # CSS styling for larger font and button adjustments
 st.markdown(
@@ -31,91 +34,32 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# Training content sections
-training_content = [
-    {
-        "title": "1. Password Management",
-        "content": """
-            Strong passwords are essential to secure your online accounts.
-            Use unique, complex passwords for each account and consider using a password manager.
-            Avoid common words and use a mix of uppercase, lowercase, numbers, and symbols.
-        """
-    },
-    {
-        "title": "2. Phishing Scams",
-        "content": """
-            Phishing is a common cyberattack where attackers trick you into providing sensitive information.
-            Be wary of suspicious emails, texts, or phone calls requesting personal information.
-            Always verify the sender's identity and avoid clicking on unknown links.
-        """
-    },
-    {
-        "title": "3. Secure Wi-Fi Practices",
-        "content": """
-            Using secure Wi-Fi is essential to protect your data. Avoid public Wi-Fi for sensitive activities.
-            Consider using a VPN when connecting to unsecured networks. Always secure your home network with a strong password.
-        """
-    },
-    {
-        "title": "4. Software Updates",
-        "content": """
-            Keeping your software up to date helps protect you from vulnerabilities.
-            Regular updates often include security patches that help prevent exploitation by cybercriminals.
-            Enable automatic updates wherever possible.
-        """
-    }
-]
+# Welcome Screen - Get Subject
+def welcome_screen():
+    st.markdown("<div class='header-font'>Welcome to the [AI] Learning System</div>", unsafe_allow_html=True)
+    st.markdown("<div class='big-font'>Enter the course subject you want to learn about:</div>", unsafe_allow_html=True)
+    
+    # Subject input field
+    st.session_state.course_subject = st.text_input("Course Subject", placeholder="e.g., Cybersecurity measures in an organisation")
+    
+    # Proceed button
+    proceed_button = st.button("Proceed", key="welcome_proceed", disabled=st.session_state.loading)
 
-# Quiz questions
-quiz_questions = [
-    {
-        "question": "What is a strong password practice?",
-        "options": [
-            "Use the same password for all accounts.",
-            "Use unique and complex passwords for each account.",
-            "Use a simple password for easier memory.",
-            "Include only lowercase letters in the password."
-        ],
-        "answer": "Use unique and complex passwords for each account."
-    },
-    {
-        "question": "What should you be cautious of in phishing scams?",
-        "options": [
-            "Emails from known sources.",
-            "Unfamiliar emails asking for personal information.",
-            "Text messages from friends.",
-            "Social media notifications."
-        ],
-        "answer": "Unfamiliar emails asking for personal information."
-    },
-    {
-        "question": "What should you avoid when using Wi-Fi for sensitive activities?",
-        "options": [
-            "Using your home Wi-Fi network.",
-            "Using public Wi-Fi without a VPN.",
-            "Securing your Wi-Fi with a password.",
-            "Using a strong password."
-        ],
-        "answer": "Using public Wi-Fi without a VPN."
-    },
-    {
-        "question": "Why are software updates important?",
-        "options": [
-            "They improve the appearance of the software.",
-            "They provide security patches and prevent exploitation.",
-            "They allow access to new apps.",
-            "They are optional and unimportant."
-        ],
-        "answer": "They provide security patches and prevent exploitation."
-    }
-]
+    if proceed_button and st.session_state.course_subject:
+        # Set loading state and fetch content
+        st.session_state.loading = True
+        with st.spinner("Generating course content and quiz... Please wait."):
+            st.session_state.training_content = get_course_content(st.session_state.course_subject)
+            st.session_state.quiz_questions = get_quiz_generator(st.session_state.training_content)
+            st.session_state.loading = False
+            st.session_state.screen = "intro"  # Move to next screen automatically
 
 # Intro Screen
 def intro_screen():
-    st.markdown("<div class='header-font'>Welcome to the CyberSecurity Awareness Course</div>", unsafe_allow_html=True)
+    st.markdown("<div class='header-font'>Get Ready to Start Your Course!</div>", unsafe_allow_html=True)
     st.markdown(
-        "<div class='big-font'>In this course, you'll go through a training section to learn about cybersecurity "
-        "essentials. Afterward, you'll be given a quiz to assess your understanding of these concepts.</div>",
+        "<div class='big-font'>In this course, you'll go through a training section to learn about the selected "
+        "topic. Afterward, you'll be given a quiz to assess your understanding of these concepts.</div>",
         unsafe_allow_html=True
     )
     st.markdown("<div class='big-font'>If you're ready to begin, click the 'Proceed' button below.</div>", unsafe_allow_html=True)
@@ -125,21 +69,19 @@ def intro_screen():
 
 # Training Screen
 def training_screen():
-    # Find the current training screen index
     index = int(st.session_state.screen.replace("training", "")) - 1
-    section = training_content[index]
+    section = st.session_state.training_content[index]
 
     st.markdown(f"<div class='subheader-font'>{section['title']}</div>", unsafe_allow_html=True)
     st.markdown(f"<div class='big-font'>{section['content']}</div>", unsafe_allow_html=True)
 
-    # Navigation buttons with spacing
     col1, col2, col3 = st.columns([1, 2, 1])
     with col1:
         if st.button("Previous", key=f"previous{index}"):
             st.session_state.screen = f"training{index}" if index > 0 else "intro"
     with col3:
         if st.button("Next", key=f"next{index}"):
-            st.session_state.screen = f"training{index + 2}" if index < len(training_content) - 1 else "prepare_quiz"
+            st.session_state.screen = f"training{index + 2}" if index < len(st.session_state.training_content) - 1 else "prepare_quiz"
 
 # Preparation Screen
 def prepare_quiz_screen():
@@ -153,46 +95,40 @@ def prepare_quiz_screen():
 
 # Quiz Screen
 def quiz_screen():
-    # Get the current quiz question index
     index = int(st.session_state.screen.replace("quiz", "")) - 1
-    question_data = quiz_questions[index]
+    question_data = st.session_state.quiz_questions[index]
 
     st.markdown(f"<div class='subheader-font'>Question {index + 1}</div>", unsafe_allow_html=True)
     st.markdown(f"<div class='big-font'>{question_data['question']}</div>", unsafe_allow_html=True)
 
-    # Display options and collect answer with unique keys for each question
     answer = st.radio("Choose your answer:", question_data["options"], key=f"quiz{index + 1}")
     st.session_state.answers[f"quiz{index + 1}"] = answer
 
-    # Navigation buttons with spacing
     col1, col2, col3 = st.columns([1, 2, 1])
     with col1:
         if st.button("Previous", key=f"quiz_prev{index}"):
             st.session_state.screen = f"quiz{index}" if index > 0 else "prepare_quiz"
     with col3:
         if st.button("Next", key=f"quiz_next{index}"):
-            st.session_state.screen = f"quiz{index + 2}" if index < len(quiz_questions) - 1 else "result"
+            st.session_state.screen = f"quiz{index + 2}" if index < len(st.session_state.quiz_questions) - 1 else "result"
 
 # Result Screen
 def result_screen():
-    # Calculate score
     score = sum(
-        1 for i, question_data in enumerate(quiz_questions, 1)
+        1 for i, question_data in enumerate(st.session_state.quiz_questions, 1)
         if st.session_state.answers.get(f"quiz{i}") == question_data["answer"]
     )
 
     st.markdown("<div class='subheader-font'>Quiz Results</div>", unsafe_allow_html=True)
-    st.markdown(f"<div class='big-font'>You scored {score} out of {len(quiz_questions)}.</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='big-font'>You scored {score} out of {len(st.session_state.quiz_questions)}.</div>", unsafe_allow_html=True)
 
-    # Feedback based on score
-    if score == len(quiz_questions):
+    if score == len(st.session_state.quiz_questions):
         st.markdown("<div class='big-font'>Excellent! You have strong cybersecurity awareness.</div>", unsafe_allow_html=True)
-    elif score >= len(quiz_questions) / 2:
+    elif score >= len(st.session_state.quiz_questions) / 2:
         st.markdown("<div class='big-font'>Good job! You have a solid understanding but could benefit from a little more practice.</div>", unsafe_allow_html=True)
     else:
         st.markdown("<div class='big-font'>Keep learning! Cybersecurity is a critical skill in today’s digital world.</div>", unsafe_allow_html=True)
 
-    # Options to retake training or quiz with button adjustments
     col1, col2 = st.columns([1, 1])
     with col1:
         if st.button("Retake Training", key="retake_training"):
@@ -203,8 +139,10 @@ def result_screen():
             st.session_state.screen = "quiz1"
             st.session_state.answers.clear()
 
-# Screen router
-if st.session_state.screen == "intro":
+# Screen Router
+if st.session_state.screen == "welcome":
+    welcome_screen()
+elif st.session_state.screen == "intro":
     intro_screen()
 elif st.session_state.screen.startswith("training"):
     training_screen()
